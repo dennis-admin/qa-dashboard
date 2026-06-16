@@ -169,8 +169,31 @@
   .status-pill.good  { background: #dcfce7; color: #15803d; }
   .status-pill.norm  { background: #f1f5f9; color: #64748b; }
 
-  .chart-container { position: relative; height: 280px; }
+  .chart-container { position: relative; height: 260px; }
   .chart-caption { text-align: right; color: #94a3b8; font-size: 0.72rem; margin-top: 4px; }
+
+  /* 커스텀 범례 — 선 + 중앙 점 */
+  .custom-legend {
+    display: flex; align-items: center; flex-wrap: wrap;
+    gap: 18px; padding: 4px 4px 10px 4px;
+  }
+  .cl-item {
+    display: inline-flex; align-items: center; gap: 6px;
+    font-size: 0.78rem;
+  }
+  .cl-line {
+    position: relative; width: 22px; height: 2px;
+    background: currentColor; border-radius: 1px;
+    flex-shrink: 0;
+  }
+  .cl-line::after {
+    content: ''; position: absolute;
+    top: 50%; left: 50%;
+    width: 6px; height: 6px; border-radius: 50%;
+    transform: translate(-50%, -50%);
+    background: currentColor;
+  }
+  .cl-text { color: #475569; font-weight: 500; }
 
   /* ── 인포 호버 툴팁 ── */
   .info-tip { position: relative; display: inline-block; margin-left: 6px; cursor: help; vertical-align: middle; }
@@ -428,6 +451,7 @@ function render() {
         <div class="card-body">
           <div>${rowsHtml}</div>
           <div>
+            <div class="custom-legend" id="legend-${idx}"></div>
             <div class="chart-container"><canvas id="chart-${idx}"></canvas></div>
             <div class="chart-caption">점선은 최근 ${currentPeriod}일 평균</div>
           </div>
@@ -438,8 +462,23 @@ function render() {
   html += `<footer>일일 통합 품질 대시보드 · 데이터 출처: stats_history.json</footer>`;
   document.getElementById("app").innerHTML = html;
 
-  // 차트 그리기
-  cats.forEach((cat, idx) => drawChart(`chart-${idx}`, cat));
+  // 차트 그리기 + 커스텀 범례
+  cats.forEach((cat, idx) => {
+    drawChart(`chart-${idx}`, cat);
+    renderCustomLegend(`legend-${idx}`, cat);
+  });
+}
+
+function renderCustomLegend(legendId, cat) {
+  const el = document.getElementById(legendId);
+  if (!el) return;
+  const html = cat.metricsWithStatus.map(m => `
+    <span class="cl-item" style="color:${m.color}">
+      <span class="cl-line"></span>
+      <span class="cl-text">${m.name}</span>
+    </span>
+  `).join("");
+  el.innerHTML = html;
 }
 
 function kpiCard(klass, label, value, sub) {
@@ -501,19 +540,7 @@ function drawChart(canvasId, cat) {
       responsive: true,
       maintainAspectRatio: false,
       plugins: {
-        legend: {
-          position: 'top',
-          align: 'start',
-          labels: {
-            color: '#475569',
-            font: { size: 11 },
-            usePointStyle: true,
-            pointStyle: 'line',
-            boxWidth: 30,
-            padding: 16,
-            filter: (item) => !item.text.includes("평균"),  // 평균선은 범례 숨김
-          },
-        },
+        legend: { display: false },  // 커스텀 HTML 범례 사용
         tooltip: { mode: 'index', intersect: false },
       },
       scales: {
