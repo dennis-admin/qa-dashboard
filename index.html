@@ -1,0 +1,537 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>일일 통합 품질 대시보드</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<style>
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; padding: 1.5rem 2rem;
+    background: #f6f7fb; color: #1f2937;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif;
+    line-height: 1.4;
+  }
+  .container { max-width: 1480px; margin: 0 auto; }
+
+  /* ── 헤더 ── */
+  .dashboard-title {
+    display: inline-flex; align-items: center; gap: 6px;
+    font-size: 0.82rem; font-weight: 700; color: #64748b;
+    letter-spacing: 0.04em; text-transform: uppercase;
+    margin-bottom: 6px;
+  }
+  .header-row { display: flex; align-items: center; gap: 20px; }
+  .header-left { flex: 7; }
+  .header-right { flex: 3; text-align: right; }
+  .dashboard-date {
+    display: flex; align-items: baseline; gap: 12px;
+    font-size: 1.9rem; font-weight: 800; color: #0f172a;
+    letter-spacing: -0.025em; line-height: 1.1;
+    margin-bottom: 6px;
+  }
+  .dashboard-date-weekday { font-size: 1.1rem; font-weight: 600; color: #64748b; }
+  .dashboard-date-tag {
+    display: inline-block;
+    background: #dbeafe; color: #1e40af;
+    font-size: 0.7rem; font-weight: 700;
+    padding: 2px 10px; border-radius: 999px;
+    letter-spacing: 0.04em;
+  }
+  .dashboard-date-meta {
+    color: #94a3b8; font-size: 0.78rem;
+    display: flex; align-items: center; gap: 6px;
+  }
+  .meta-dot { width: 3px; height: 3px; background: #cbd5e1; border-radius: 50%; }
+  .filter-label {
+    color: #475569; font-size: 0.72rem; font-weight: 600;
+    letter-spacing: 0.04em; text-transform: uppercase;
+    margin-bottom: 4px;
+  }
+  #periodSelect {
+    width: 100%; padding: 8px 12px;
+    background: #ffffff; border: 1px solid #cbd5e1;
+    border-radius: 8px; font-size: 0.9rem; color: #0f172a;
+    cursor: pointer;
+  }
+  #periodSelect:hover { border-color: #94a3b8; }
+  .filter-hint { color: #94a3b8; font-size: 0.72rem; margin-top: 4px; }
+
+  hr.divider { border: none; border-top: 1px solid #e2e8f0; margin: 18px 0 16px 0; }
+
+  /* ── 핵심 요약 ── */
+  .headline-box {
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-left: 4px solid #cbd5e1;
+    border-radius: 12px;
+    padding: 18px 22px;
+    margin-bottom: 1rem;
+    box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04);
+  }
+  .headline-box.alert { border-left-color: #dc2626; background: #fef2f2; }
+  .headline-box.warn  { border-left-color: #d97706; background: #fffbeb; }
+  .headline-box.good  { border-left-color: #16a34a; background: #f0fdf4; }
+  .headline-tag {
+    font-size: 0.72rem; font-weight: 700; color: #64748b;
+    text-transform: uppercase; letter-spacing: 0.08em;
+  }
+  .headline-text {
+    color: #0f172a; font-size: 1.0rem; font-weight: 600;
+    margin-top: 4px; line-height: 1.5;
+  }
+
+  /* ── KPI ── */
+  .kpi-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 18px; }
+  .kpi-card {
+    background: #ffffff; border: 1px solid #e2e8f0;
+    border-radius: 10px; padding: 16px 20px;
+    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.03);
+    border-left: 3px solid #cbd5e1;
+  }
+  .kpi-card.alert  { border-left-color: #dc2626; }
+  .kpi-card.warn   { border-left-color: #d97706; }
+  .kpi-card.good   { border-left-color: #16a34a; }
+  .kpi-card.info   { border-left-color: #2563eb; }
+  .kpi-label { color: #64748b; font-size: 0.72rem; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase;}
+  .kpi-value { color: #0f172a; font-size: 2.0rem; font-weight: 800; margin-top: 4px; line-height: 1.0;}
+  .kpi-sub   { color: #94a3b8; font-size: 0.72rem; margin-top: 4px;}
+
+  /* ── 섹션 헤더 ── */
+  .section-h {
+    color: #0f172a; font-size: 1.05rem; font-weight: 700;
+    margin: 1.8rem 0 0.6rem 0;
+  }
+
+  /* ── 카테고리 카드 ── */
+  .metric-card {
+    background: #ffffff; border: 1px solid #e2e8f0;
+    border-radius: 12px; padding: 18px 20px;
+    margin-bottom: 12px;
+    box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04);
+    overflow: visible;
+  }
+  .card-header {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 10px;
+  }
+  .card-header-left { display: flex; align-items: center; flex-wrap: wrap; gap: 4px;}
+  .metric-title {
+    color: #0f172a; font-size: 1.05rem; font-weight: 700;
+  }
+  .admin-link {
+    display: inline-flex; align-items: center; gap: 4px;
+    background: #f1f5f9; color: #475569;
+    padding: 3px 10px; border-radius: 6px; font-size: 0.72rem;
+    font-weight: 600; text-decoration: none;
+    margin-left: 8px; transition: all 0.15s;
+  }
+  .admin-link:hover { background: #e2e8f0; color: #0f172a; }
+  .metric-summary-tag {
+    font-size: 0.7rem; font-weight: 700;
+    padding: 3px 10px; border-radius: 20px;
+  }
+  .metric-summary-tag.alert { background: #fee2e2; color: #b91c1c; }
+  .metric-summary-tag.warn  { background: #fef3c7; color: #92400e; }
+  .metric-summary-tag.good  { background: #dcfce7; color: #15803d; }
+  .metric-summary-tag.norm  { background: #f1f5f9; color: #475569; }
+
+  .card-body { display: grid; grid-template-columns: 3fr 5fr; gap: 20px; }
+
+  .metric-row-info {
+    display: flex; align-items: center;
+    padding: 10px 0;
+    border-top: 1px solid #f1f5f9;
+  }
+  .metric-row-info:first-child { border-top: none; padding-top: 4px; }
+  .metric-color-dot {
+    width: 10px; height: 10px; border-radius: 50%;
+    margin-right: 10px; flex-shrink: 0;
+  }
+  .metric-row-name {
+    flex: 1; color: #0f172a; font-size: 0.95rem; font-weight: 700;
+  }
+  .metric-row-vals {
+    display: flex; align-items: baseline; gap: 8px;
+    margin-right: 12px;
+  }
+  .metric-row-today { color: #0f172a; font-size: 1.2rem; font-weight: 800; }
+  .metric-row-base { color: #475569; font-size: 0.85rem; font-weight: 500; }
+  .status-pill {
+    padding: 2px 10px; border-radius: 999px;
+    font-size: 0.68rem; font-weight: 700;
+    letter-spacing: 0.03em;
+    white-space: nowrap;
+  }
+  .status-pill.alert { background: #fee2e2; color: #b91c1c; }
+  .status-pill.warn  { background: #fef3c7; color: #92400e; }
+  .status-pill.good  { background: #dcfce7; color: #15803d; }
+  .status-pill.norm  { background: #f1f5f9; color: #64748b; }
+
+  .chart-container { position: relative; height: 280px; }
+  .chart-caption { text-align: right; color: #94a3b8; font-size: 0.72rem; margin-top: 4px; }
+
+  /* ── 인포 호버 툴팁 ── */
+  .info-tip { position: relative; display: inline-block; margin-left: 6px; cursor: help; vertical-align: middle; }
+  .info-icon {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 17px; height: 17px;
+    background: #94a3b8; color: #ffffff;
+    border-radius: 50%;
+    font-size: 11px; font-weight: 700;
+    font-family: Georgia, serif; font-style: italic;
+    transition: background 0.15s;
+  }
+  .info-tip:hover .info-icon { background: #475569; }
+  .info-popup {
+    visibility: hidden; opacity: 0;
+    position: absolute;
+    top: 26px; left: -8px;
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 10px;
+    box-shadow: 0 8px 24px rgba(15, 23, 42, 0.12);
+    padding: 14px 16px;
+    width: 320px;
+    z-index: 9999;
+    color: #334155;
+    font-size: 0.78rem;
+    line-height: 1.55;
+    transition: opacity 0.15s;
+    font-weight: 400;
+  }
+  .info-tip:hover .info-popup { visibility: visible; opacity: 1; }
+  .ip-label { font-weight: 700; color: #0f172a; font-size: 0.74rem; text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 3px; }
+  .ip-row { margin-bottom: 10px; }
+  .ip-row:last-child { margin-bottom: 0; }
+  .info-popup hr { border: none; border-top: 1px solid #f1f5f9; margin: 10px 0; }
+  .ip-status-line { display: flex; justify-content: space-between; padding: 2px 0; font-size: 0.76rem; }
+  .ip-status-line span:first-child { color: #475569; font-weight: 600; }
+  .ip-status-line span:last-child { color: #94a3b8; }
+  .ip-reason { color: #94a3b8; font-size: 0.72rem; margin-top: 4px; padding-left: 4px; line-height: 1.4; font-style: italic;}
+
+  footer {
+    text-align: center; color: #94a3b8; font-size: 0.78rem;
+    margin-top: 2rem; padding-bottom: 1rem;
+  }
+
+  @media (max-width: 900px) {
+    .kpi-row { grid-template-columns: repeat(2, 1fr); }
+    .card-body { grid-template-columns: 1fr; }
+    .header-row { flex-direction: column; align-items: stretch; }
+    .header-right { text-align: left; }
+  }
+</style>
+</head>
+<body>
+<div class="container" id="app">
+  <div style="text-align:center;padding:4rem;color:#94a3b8">데이터 로딩 중...</div>
+</div>
+
+<script>
+const DAY_KR = ["월", "화", "수", "목", "금", "토", "일"];
+const PERIOD_OPTIONS = [7, 14, 30, 60, 90];
+
+// ─── 상태 판정 ───
+function computeStatus(historyVals, todayVal, minDiff) {
+  const vals = historyVals.filter(v => v !== null && !isNaN(v));
+  if (vals.length < 3 || todayVal == null) return {pct: null, klass: "norm", label: "안정"};
+
+  const mean = vals.reduce((s,x)=>s+x, 0) / vals.length;
+  const variance = vals.reduce((s,x)=>s+(x-mean)**2, 0) / vals.length;
+  const std = Math.sqrt(variance);
+  const diff = todayVal - mean;
+  const pct = mean ? (diff / mean * 100) : 0;
+
+  // 🚨 두 조건 충족
+  if (std > 0 && todayVal > mean + 2*std && diff >= minDiff) {
+    return {pct, klass: "alert", label: "🚨 문제발생"};
+  }
+  // ⚠️ 3일 연속 상승
+  const full = [...vals, todayVal];
+  let streak = 0;
+  for (let i = full.length - 1; i > 0; i--) {
+    if (full[i] > full[i-1]) streak++;
+    else break;
+  }
+  if (streak >= 3) return {pct, klass: "warn", label: `⚠️ ${streak}일 연속 상승`};
+  return {pct, klass: "norm", label: "안정"};
+}
+
+// ─── 메인 렌더 ───
+let DATA = null;
+let currentPeriod = 7;
+const chartInstances = [];
+
+async function load() {
+  const res = await fetch("data.json?t=" + Date.now()); // 캐시 회피
+  DATA = await res.json();
+  render();
+}
+
+function render() {
+  // 차트 인스턴스 정리
+  while (chartInstances.length) chartInstances.pop().destroy();
+
+  const latestDate = new Date(DATA.latest_date);
+  const weekday = DAY_KR[(latestDate.getDay() + 6) % 7];  // JS Sunday=0 → Monday=0 보정
+  const dateMain = DATA.latest_date.replace(/-/g, ".");
+  const totalDays = computeTotalDays();
+
+  // 카테고리별 상태 계산
+  const cats = DATA.categories.map(cat => {
+    const metricsWithStatus = cat.metrics.map(m => {
+      const allValues = m.history.map(h => h.value);
+      const todayVal = m.history.length > 0 ? m.history[m.history.length - 1].value : null;
+      const historyExclToday = allValues.slice(0, -1).slice(-currentPeriod);
+      const status = computeStatus(historyExclToday, todayVal, cat.min_diff);
+      const baseline = historyExclToday.length > 0 ?
+        historyExclToday.reduce((s,x)=>s+x, 0) / historyExclToday.length : null;
+      return {...m, todayVal, status, baseline};
+    });
+    return {...cat, metricsWithStatus};
+  });
+
+  // 통계
+  const allMetrics = cats.flatMap(c => c.metricsWithStatus);
+  const alertCnt = allMetrics.filter(m => m.status.klass === "alert").length;
+  const warnCnt  = allMetrics.filter(m => m.status.klass === "warn").length;
+  const totalCnt = allMetrics.length;
+  const normCnt  = totalCnt - alertCnt - warnCnt;
+
+  // 핵심 요약
+  let headlineHtml;
+  const worst = allMetrics.filter(m => m.status.klass === "alert").sort((a,b)=>b.status.pct-a.status.pct);
+  const warns = allMetrics.filter(m => m.status.klass === "warn").sort((a,b)=>b.status.pct-a.status.pct);
+  if (worst.length) {
+    const m = worst[0];
+    const cat = cats.find(c => c.metricsWithStatus.includes(m));
+    headlineHtml = `
+      <div class="headline-box alert">
+        <div class="headline-tag">🚨 문제발생 ${worst.length}건</div>
+        <div class="headline-text"><b>${cat.name} · ${m.name}</b>이(가) 이상감지 발동(평균 대비 ${m.status.pct.toFixed(0)}%), 원인 파악이 필요합니다.</div>
+      </div>`;
+  } else if (warns.length) {
+    const m = warns[0];
+    const cat = cats.find(c => c.metricsWithStatus.includes(m));
+    headlineHtml = `
+      <div class="headline-box warn">
+        <div class="headline-tag">⚠️ 주의 ${warns.length}건</div>
+        <div class="headline-text"><b>${cat.name} · ${m.name}</b>이(가) 3일 연속 상승 추세, 추이 모니터링을 권장합니다.</div>
+      </div>`;
+  } else {
+    headlineHtml = `
+      <div class="headline-box good">
+        <div class="headline-tag">✅ 전 지표 안정</div>
+        <div class="headline-text">기준일(${DATA.latest_date}) 측정 지표 전체가 평소 범위 내에서 안정적으로 유지되고 있습니다.</div>
+      </div>`;
+  }
+
+  // 헤더
+  const periodHint = currentPeriod === 7 ? "Teams 알림과 동일한 기준" : `최근 ${currentPeriod}일 평균 기준`;
+  const periodOptionsHtml = PERIOD_OPTIONS.map(d =>
+    `<option value="${d}" ${d===currentPeriod?'selected':''}>최근 ${d}일</option>`
+  ).join("");
+
+  // 본문 조립
+  let html = `
+    <div class="header-row">
+      <div class="header-left">
+        <div class="dashboard-title">📊 일일 통합 품질 대시보드</div>
+        <div class="dashboard-date">
+          <span>${dateMain}</span>
+          <span class="dashboard-date-weekday">(${weekday})</span>
+          <span class="dashboard-date-tag">기준일</span>
+        </div>
+        <div class="dashboard-date-meta">
+          <span>최근 ${totalDays}일 데이터</span>
+          <span class="meta-dot"></span>
+          <span>갱신 ${DATA.generated_at}</span>
+        </div>
+      </div>
+      <div class="header-right">
+        <div class="filter-label">기간 필터</div>
+        <select id="periodSelect" onchange="changePeriod(this.value)">${periodOptionsHtml}</select>
+        <div class="filter-hint">${periodHint}</div>
+      </div>
+    </div>
+    <hr class="divider">
+    ${headlineHtml}
+    <div class="kpi-row">
+      ${kpiCard("info", "측정 지표", totalCnt, `${DATA.latest_date} 수집`)}
+      ${kpiCard("alert", "🚨 문제발생", alertCnt, alertCnt ? "이상감지 발동" : "발생 없음")}
+      ${kpiCard("warn", "⚠️ 주의", warnCnt, warnCnt ? "3일 연속 상승 추세" : "발생 없음")}
+      ${kpiCard("good", "✅ 안정", normCnt, "정상 범위 유지")}
+    </div>
+    <div class="section-h">📈 카테고리별 상세</div>
+  `;
+
+  cats.forEach((cat, idx) => {
+    const catAlert = cat.metricsWithStatus.filter(m => m.status.klass === "alert").length;
+    const catWarn  = cat.metricsWithStatus.filter(m => m.status.klass === "warn").length;
+    let tagClass, tagText;
+    if (catAlert) { tagClass="alert"; tagText=`🚨 문제발생 ${catAlert}건`; }
+    else if (catWarn) { tagClass="warn"; tagText=`⚠️ 주의 ${catWarn}건`; }
+    else { tagClass="good"; tagText="✅ 전체 안정"; }
+
+    const infoHtml = `
+      <span class="info-tip">
+        <span class="info-icon">i</span>
+        <div class="info-popup">
+          <div class="ip-row">
+            <div class="ip-label">단위</div>
+            <div>${cat.info.unit_text}</div>
+          </div>
+          <div class="ip-row">
+            <div class="ip-label">문제발생 기준 (둘 다 충족 시)</div>
+            <div>① 평소 흔들림 폭의 2배 이상 벗어남</div>
+            <div>② 실제 차이가 ${cat.info.min_diff_text}</div>
+            <div class="ip-reason">↳ <i>${cat.info.reason}</i></div>
+          </div>
+          <hr>
+          <div class="ip-row">
+            <div class="ip-label">상태 라벨</div>
+            <div class="ip-status-line"><span>안정</span><span>정상 범위 유지</span></div>
+            <div class="ip-status-line"><span>⚠️ 주의</span><span>3일 연속 상승 추세</span></div>
+            <div class="ip-status-line"><span>🚨 문제발생</span><span>알림 두 조건 모두 충족</span></div>
+          </div>
+        </div>
+      </span>`;
+
+    const rowsHtml = cat.metricsWithStatus.map(m => {
+      const pctTxt = m.status.pct != null ? `${m.status.pct >= 0 ? '+' : ''}${m.status.pct.toFixed(1)}%` : "—";
+      const baseTxt = m.baseline != null ? `${m.baseline.toFixed(2)}${cat.unit}` : "—";
+      const todayTxt = m.todayVal != null ? `${m.todayVal.toFixed(2)}${cat.unit}` : "—";
+      return `
+        <div class="metric-row-info">
+          <span class="metric-color-dot" style="background:${m.color}"></span>
+          <span class="metric-row-name">${m.name}</span>
+          <span class="metric-row-vals">
+            <span class="metric-row-today">${todayTxt}</span>
+            <span class="metric-row-base">평균 ${baseTxt} · ${pctTxt}</span>
+          </span>
+          <span class="status-pill ${m.status.klass}">${m.status.label.replace('🚨 ', '').replace('⚠️ ', '')}</span>
+        </div>`;
+    }).join("");
+
+    html += `
+      <div class="metric-card">
+        <div class="card-header">
+          <div class="card-header-left">
+            <span class="metric-title">${cat.name}</span>
+            <a href="${cat.admin_url}" target="_blank" class="admin-link">📊 어드민 이동</a>
+            ${infoHtml}
+          </div>
+          <span class="metric-summary-tag ${tagClass}">${tagText}</span>
+        </div>
+        <div class="card-body">
+          <div>${rowsHtml}</div>
+          <div>
+            <div class="chart-container"><canvas id="chart-${idx}"></canvas></div>
+            <div class="chart-caption">점선은 최근 ${currentPeriod}일 평균</div>
+          </div>
+        </div>
+      </div>`;
+  });
+
+  html += `<footer>일일 통합 품질 대시보드 · 데이터 출처: stats_history.json</footer>`;
+  document.getElementById("app").innerHTML = html;
+
+  // 차트 그리기
+  cats.forEach((cat, idx) => drawChart(`chart-${idx}`, cat));
+}
+
+function kpiCard(klass, label, value, sub) {
+  return `
+    <div class="kpi-card ${klass}">
+      <div class="kpi-label">${label}</div>
+      <div class="kpi-value">${value}</div>
+      <div class="kpi-sub">${sub}</div>
+    </div>`;
+}
+
+function drawChart(canvasId, cat) {
+  const ctx = document.getElementById(canvasId);
+  if (!ctx) return;
+  const datasets = [];
+  cat.metricsWithStatus.forEach(m => {
+    // 최근 N일 데이터
+    const recent = m.history.slice(-currentPeriod);
+    const labels = recent.map(h => h.date.slice(5));  // MM-DD
+    const values = recent.map(h => h.value);
+
+    // 실측 라인
+    datasets.push({
+      label: m.name,
+      data: values,
+      borderColor: m.color,
+      backgroundColor: m.color,
+      borderWidth: 2,
+      pointRadius: 3,
+      pointBackgroundColor: m.color,
+      pointBorderColor: "#ffffff",
+      pointBorderWidth: 1,
+      tension: 0.2,
+      fill: false,
+    });
+
+    // 평균선 (점선)
+    if (m.baseline != null) {
+      datasets.push({
+        label: m.name + " 평균",
+        data: new Array(values.length).fill(m.baseline),
+        borderColor: m.color,
+        borderWidth: 1.2,
+        borderDash: [5, 5],
+        pointRadius: 0,
+        showLine: true,
+        legend: { display: false },
+        order: 99,
+      });
+    }
+  });
+
+  const labels = cat.metricsWithStatus[0]?.history.slice(-currentPeriod).map(h => h.date.slice(5)) || [];
+
+  const chart = new Chart(ctx, {
+    type: 'line',
+    data: { labels, datasets },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: {
+          position: 'top',
+          labels: {
+            color: '#475569', font: { size: 11 },
+            filter: (item) => !item.text.includes("평균"),  // 평균선은 범례 숨김
+          },
+        },
+        tooltip: { mode: 'index', intersect: false },
+      },
+      scales: {
+        x: { grid: { display: false }, ticks: { color: '#64748b', font: { size: 11 } } },
+        y: { grid: { color: '#f1f5f9' }, ticks: { color: '#64748b', font: { size: 11 } } },
+      },
+    },
+  });
+  chartInstances.push(chart);
+}
+
+function changePeriod(val) {
+  currentPeriod = parseInt(val);
+  render();
+}
+
+function computeTotalDays() {
+  if (!DATA?.categories?.length) return 0;
+  const firstMetric = DATA.categories[0].metrics[0];
+  if (!firstMetric?.history?.length) return 0;
+  return firstMetric.history.length;
+}
+
+load();
+</script>
+</body>
+</html>
