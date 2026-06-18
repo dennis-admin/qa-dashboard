@@ -327,21 +327,26 @@ function render() {
   let headlineHtml;
   const worst = allMetrics.filter(m => m.status.klass === "alert").sort((a,b)=>b.status.pct-a.status.pct);
   const warns = allMetrics.filter(m => m.status.klass === "warn").sort((a,b)=>b.status.pct-a.status.pct);
+  function formatMetricsList(items, maxShow = 3) {
+    const names = items.slice(0, maxShow).map(m => {
+      const cat = cats.find(c => c.metricsWithStatus.includes(m));
+      return `<b>${cat.name} · ${m.name}</b>`;
+    });
+    if (items.length > maxShow) names.push(`외 ${items.length - maxShow}건`);
+    return names.join(", ");
+  }
+
   if (worst.length) {
-    const m = worst[0];
-    const cat = cats.find(c => c.metricsWithStatus.includes(m));
     headlineHtml = `
       <div class="headline-box alert">
         <div class="headline-tag">🚨 문제발생 ${worst.length}건</div>
-        <div class="headline-text"><b>${cat.name} · ${m.name}</b>이(가) 이상감지 발동(평균 대비 ${m.status.pct.toFixed(0)}%), 원인 파악이 필요합니다.</div>
+        <div class="headline-text">${formatMetricsList(worst)} 이상감지 발동, 원인 파악이 필요합니다.</div>
       </div>`;
   } else if (warns.length) {
-    const m = warns[0];
-    const cat = cats.find(c => c.metricsWithStatus.includes(m));
     headlineHtml = `
       <div class="headline-box warn">
         <div class="headline-tag">⚠️ 주의 ${warns.length}건</div>
-        <div class="headline-text"><b>${cat.name} · ${m.name}</b>이(가) 3일 연속 상승 추세, 추이 모니터링을 권장합니다.</div>
+        <div class="headline-text">${formatMetricsList(warns)} 3일 연속 상승 추세, 추이 모니터링을 권장합니다.</div>
       </div>`;
   } else {
     headlineHtml = `
