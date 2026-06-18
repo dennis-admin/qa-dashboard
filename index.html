@@ -328,12 +328,26 @@ function render() {
   const worst = allMetrics.filter(m => m.status.klass === "alert").sort((a,b)=>b.status.pct-a.status.pct);
   const warns = allMetrics.filter(m => m.status.klass === "warn").sort((a,b)=>b.status.pct-a.status.pct);
   function formatMetricsList(items, maxShow = 3) {
-    const names = items.slice(0, maxShow).map(m => {
+    // 카테고리별로 그룹화
+    const grouped = new Map();
+    items.forEach(m => {
       const cat = cats.find(c => c.metricsWithStatus.includes(m));
-      return `<b>${cat.name} · ${m.name}</b>`;
+      const catName = cat.name;
+      if (!grouped.has(catName)) grouped.set(catName, []);
+      grouped.get(catName).push(m.name);
     });
-    if (items.length > maxShow) names.push(`외 ${items.length - maxShow}건`);
-    return names.join(", ");
+
+    const parts = [];
+    let totalShown = 0;
+    for (const [catName, metrics] of grouped) {
+      const remaining = maxShow - totalShown;
+      if (remaining <= 0) break;
+      const showMetrics = metrics.slice(0, remaining);
+      parts.push(`<b>${catName}</b> · ${showMetrics.join(", ")}`);
+      totalShown += showMetrics.length;
+    }
+    if (items.length > totalShown) parts.push(`외 ${items.length - totalShown}건`);
+    return parts.join(", ");
   }
 
   if (worst.length) {
