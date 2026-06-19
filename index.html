@@ -357,10 +357,20 @@ function render() {
         <div class="headline-text">${formatMetricsList(worst)} 이상감지 발동, 원인 파악이 필요합니다.</div>
       </div>`;
   } else if (warns.length) {
+    // 라벨에서 streak 일수 추출
+    const streaks = warns.map(m => {
+      const match = m.status.label.match(/(\d+)일/);
+      return match ? parseInt(match[1]) : 0;
+    }).filter(n => n > 0);
+    const uniq = [...new Set(streaks)].sort((a, b) => a - b);
+    let streakPhrase;
+    if (uniq.length === 1) streakPhrase = `${uniq[0]}일 연속 상승`;
+    else if (uniq.length > 1) streakPhrase = `${uniq[0]}~${uniq[uniq.length-1]}일 연속 상승`;
+    else streakPhrase = "연속 상승";
     headlineHtml = `
       <div class="headline-box warn">
         <div class="headline-tag">⚠️ 주의 ${warns.length}건</div>
-        <div class="headline-text">${formatMetricsList(warns)} 3일 연속 상승 추세, 추이 모니터링을 권장합니다.</div>
+        <div class="headline-text">${formatMetricsList(warns)} ${streakPhrase} 추세, 추이 모니터링을 권장합니다.</div>
       </div>`;
   } else {
     headlineHtml = `
