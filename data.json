@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-07-01 16:21",
+  "generated_at": "2026-07-01 16:26",
   "latest_date": "2026-06-30",
   "categories": [
     {
@@ -2236,6 +2236,16 @@
           ]
         },
         {
+          "name": "Android 라이브캠",
+          "color": "#7c3aed",
+          "history": [
+            {
+              "date": "2026-06-30",
+              "value": 0.56
+            }
+          ]
+        },
+        {
           "name": "iOS RTMP",
           "color": "#be185d",
           "history": [
@@ -2598,16 +2608,6 @@
             {
               "date": "2026-06-30",
               "value": 2.19
-            }
-          ]
-        },
-        {
-          "name": "라이브캠",
-          "color": "#7c3aed",
-          "history": [
-            {
-              "date": "2026-06-30",
-              "value": 0.56
             }
           ]
         }
