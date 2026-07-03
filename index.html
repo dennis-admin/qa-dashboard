@@ -523,11 +523,20 @@ function drawChart(canvasId, cat) {
   const ctx = document.getElementById(canvasId);
   if (!ctx) return;
   const datasets = [];
+
+  // 카테고리 내 모든 메트릭의 날짜 union → 공통 X축
+  const allDates = new Set();
   cat.metricsWithStatus.forEach(m => {
-    // 최근 N일 데이터
-    const recent = m.history.slice(-currentPeriod);
-    const labels = recent.map(h => h.date.slice(5));  // MM-DD
-    const values = recent.map(h => h.value);
+    m.history.forEach(h => allDates.add(h.date));
+  });
+  const sortedDates = Array.from(allDates).sort();
+  const recentDates = sortedDates.slice(-currentPeriod);
+  const labels = recentDates.map(d => d.slice(5));  // MM-DD
+
+  cat.metricsWithStatus.forEach(m => {
+    // 각 메트릭의 값을 실제 날짜에 맞춰 배치 (없는 날짜는 null)
+    const dateMap = new Map(m.history.map(h => [h.date, h.value]));
+    const values = recentDates.map(d => dateMap.has(d) ? dateMap.get(d) : null);
 
     // 실측 라인
     datasets.push({
@@ -542,6 +551,7 @@ function drawChart(canvasId, cat) {
       pointBorderWidth: 1,
       tension: 0.2,
       fill: false,
+      spanGaps: true,  // 데이터 없는 날짜(null) 건너뛰고 라인 연결
     });
 
     // 평균선 (점선)
@@ -559,8 +569,6 @@ function drawChart(canvasId, cat) {
       });
     }
   });
-
-  const labels = cat.metricsWithStatus[0]?.history.slice(-currentPeriod).map(h => h.date.slice(5)) || [];
 
   const chart = new Chart(ctx, {
     type: 'line',
